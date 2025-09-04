@@ -327,19 +327,12 @@ namespace TeamFiltration.Modules
 
                 domain = args.GetValue("--domain");
 
-                //To avoid SSL errors
-                var httpClientHandler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, xcert, chain, errors) =>
-                    {
-                        return true;
-                    },
-                    SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls11 | SslProtocols.Tls
-                };
-
-
             startSelection:
-                using (var httpClient = new HttpClient(httpClientHandler))
+                using (var httpClient = new HttpClient(new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, xcert, chain, errors) => true,
+                    SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls11 | SslProtocols.Tls
+                }))
                 {
                     var gitHubDict = new Dictionary<int, string>() { };
 
