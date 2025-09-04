@@ -44,8 +44,7 @@ namespace TeamFiltration
             Console.WriteLine("         --months-only         Password generated for spraying will only be based on months");
             Console.WriteLine("         --common-only         Spray with the top 20 most common passwords");
             Console.WriteLine("         --shuffle-passwords   Shuffle the passwordlist before spraying");
-            Console.WriteLine("         --shuffle-users       Shuffle the target userlist before spraying");
-            Console.WriteLine("         --shuffle-regions     Shuffle FireProx regions when spraying\n");
+            Console.WriteLine("         --shuffle-users       Shuffle the target userlist before spraying\n");
             Console.WriteLine("         --auto-exfil          If valid login is found, auto start the exfil module\n");
 
 
@@ -72,7 +71,7 @@ namespace TeamFiltration
             Console.WriteLine("   --debug           Proxy all outgoing HTTP requests through the proxy specified in the config\n");
 
             Console.WriteLine("   Examples:\n");
-            Console.WriteLine(@"        --outpath C:\Clients\2023\FooBar\TFOutput --config myCustomConfig.json --spray --sleep-min 120 --sleep-max 200 --push --shuffle-users --shuffle-regions");
+            Console.WriteLine(@"        --outpath C:\Clients\2023\FooBar\TFOutput --config myCustomConfig.json --spray --sleep-min 120 --sleep-max 200 --push --shuffle-users");
             Console.WriteLine(@"        --outpath C:\Clients\2023\FooBar\TFOutput --config myCustomConfig.json --spray --push-locked --months-only --exclude C:\Clients\2021\FooBar\Exclude_Emails.txt");
             Console.WriteLine(@"        --outpath C:\Clients\2023\FooBar\TFOutput --config myCustomConfig.json --spray --passwords C:\Clients\2021\FooBar\Generic\Passwords.txt --time-window 13:00-22:00");
             Console.WriteLine(@"        --outpath C:\Clients\2023\FooBar\TFOutput --config myCustomConfig.json --exfil --cookie-dump C:\\CookieData.txt --all");
