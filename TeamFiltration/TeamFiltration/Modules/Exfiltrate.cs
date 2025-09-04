@@ -24,7 +24,7 @@ using System.Threading;
 
 using System.Data.SQLite;
 using System.Web;
-using Amazon.Runtime;
+// AWS removed
 using Newtonsoft.Json.Linq;
 using ServiceStack.Text;
 

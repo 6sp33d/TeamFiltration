@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using TeamFiltration.Helpers;
-using TeamFiltration.Models.AWS;
 using TeamFiltration.Models.TeamFiltration;
 using TimeZoneConverter;
 
@@ -128,28 +127,7 @@ namespace TeamFiltration.Handlers
 
         }
 
-        public void DeleteFireProxEndpoint(string RestApiId)
-        {
-            var orders = _globalDatabase.GetCollection<FireProxEndpoint>("fireproxendpoints");
-            orders.DeleteMany(x => x.RestApiId.ToLower().Equals(RestApiId.ToLower()));
-        }
-        public void WriteFireProxEndpoint(FireProxEndpoint endpointData)
-        {
-            endpointData.DateTime = DateTime.Now;
-            var collectionLink = _globalDatabase.GetCollection<FireProxEndpoint>("fireproxendpoints");
-            collectionLink.EnsureIndex(x => x.Id, true);
-            collectionLink.Upsert(endpointData);
-
-
-        }
-
-
-        internal List<FireProxEndpoint> QueryAllFireProxEndpoints()
-        {
-
-            var orders = _globalDatabase.GetCollection<FireProxEndpoint>("fireproxendpoints");
-            return orders.FindAll().ToList();
-        }
+        // FireProx storage removed
 
 
 
