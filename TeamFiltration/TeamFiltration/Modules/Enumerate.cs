@@ -347,12 +347,19 @@ namespace TeamFiltration.Modules
                     gitHubDict.Add(9, "https://raw.githubusercontent.com/Flangvik/statistically-likely-usernames/master/john_smith.txt");
                     gitHubDict.Add(10, "https://raw.githubusercontent.com/Flangvik/statistically-likely-usernames/master/j.smith.txt");
                     gitHubDict.Add(11, "https://raw.githubusercontent.com/Flangvik/statistically-likely-usernames/master/smithjj.txt");
-                    gitHubDict.Add(12, "https://raw.githubusercontent.com/Flangvik/statistically-likely-usernames/master/top-formats.txt");
+                    gitHubDict.Add(12, "LOCAL:top-formats.txt");
 
 
                     foreach (var usernameDict in gitHubDict)
                     {
-                        Console.WriteLine($"    |=> [{usernameDict.Key}] " + usernameDict.Value.Split(@"/")[6].Replace(".txt", "@" + domain));
+                        if (usernameDict.Value.StartsWith("LOCAL:"))
+                        {
+                            Console.WriteLine($"    |=> [{usernameDict.Key}] " + usernameDict.Value.Replace("LOCAL:", "").Replace(".txt", "@" + domain));
+                        }
+                        else
+                        {
+                            Console.WriteLine($"    |=> [{usernameDict.Key}] " + usernameDict.Value.Split(@"/")[6].Replace(".txt", "@" + domain));
+                        }
                     }
                     Console.WriteLine();
                     Console.Write("[?] Select an email format #> ");
@@ -369,16 +376,38 @@ namespace TeamFiltration.Modules
                         goto startSelection;
                     }
 
-                    var userListReq = await httpClient.PollyGetAsync(gitHubDict.GetValueOrDefault(selection));
-                    if (userListReq.IsSuccessStatusCode)
+                    var selectedUrl = gitHubDict.GetValueOrDefault(selection);
+                    if (selectedUrl.StartsWith("LOCAL:"))
                     {
-                        var userListContent = await userListReq.Content.ReadAsStringAsync();
-                        userListData = (userListContent).Split("\n").Where(x => !string.IsNullOrEmpty(x)).Select(x => x + $"@{domain}").ToArray();
+                        // Handle local file
+                        var localFilePath = selectedUrl.Replace("LOCAL:", "");
+                        var fullPath = Path.Combine(Directory.GetCurrentDirectory(), localFilePath);
+                        
+                        if (File.Exists(fullPath))
+                        {
+                            var userListContent = await File.ReadAllTextAsync(fullPath);
+                            userListData = (userListContent).Split("\n").Where(x => !string.IsNullOrEmpty(x)).Select(x => x + $"@{domain}").ToArray();
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[!] Local file not found: {fullPath}");
+                            Environment.Exit(0);
+                        }
                     }
                     else
                     {
-                        Console.WriteLine("[!] Failed to download statistically-likely-usernames from Github!");
-                        Environment.Exit(0);
+                        // Handle GitHub URL
+                        var userListReq = await httpClient.PollyGetAsync(selectedUrl);
+                        if (userListReq.IsSuccessStatusCode)
+                        {
+                            var userListContent = await userListReq.Content.ReadAsStringAsync();
+                            userListData = (userListContent).Split("\n").Where(x => !string.IsNullOrEmpty(x)).Select(x => x + $"@{domain}").ToArray();
+                        }
+                        else
+                        {
+                            Console.WriteLine("[!] Failed to download statistically-likely-usernames from Github!");
+                            Environment.Exit(0);
+                        }
                     }
                 }
 
