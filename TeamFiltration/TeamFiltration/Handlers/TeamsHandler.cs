@@ -49,6 +49,7 @@ namespace TeamFiltration.Handlers
 
 
             _teamsClient = new HttpClient(httpClientHandler);
+            _teamsClient.Timeout = TimeSpan.FromMinutes(5); // Increase timeout to 5 minutes
             _teamsClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {getBearToken.access_token}");
 
             _teamsClient.DefaultRequestHeaders.Add("User-Agent", teamFiltrationConfig.TeamFiltrationConfig.UserAgent);
@@ -164,8 +165,10 @@ namespace TeamFiltration.Handlers
             int failedCount = 0;
 
         failedResp:
-            //TODO:Add logic to select FireProx endpoint based on current location 
-            var enumUserReq = await _teamsClient.GetAsync(enumUserUrl + $"{TeamsRegion}/beta/users/{username}/externalsearchv3");
+            try
+            {
+                //TODO:Add logic to select FireProx endpoint based on current location 
+                var enumUserReq = await _teamsClient.GetAsync(enumUserUrl + $"{TeamsRegion}/beta/users/{username}/externalsearchv3");
             if (enumUserReq.IsSuccessStatusCode)
             {
 
@@ -252,6 +255,39 @@ namespace TeamFiltration.Handlers
                     goto failedResp;
             }
             return (false, "", null, null);
+            }
+            catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException || ex.CancellationToken.IsCancellationRequested == false)
+            {
+                // Handle timeout exceptions
+                failedCount++;
+                if (failedCount > 3)
+                {
+                    Console.WriteLine($"[ENUM] Timeout after {failedCount} attempts for {username}");
+                    return (false, "", null, null);
+                }
+                else
+                {
+                    Console.WriteLine($"[ENUM] Timeout for {username}, retrying ({failedCount}/3)...");
+                    await Task.Delay(2000 * failedCount); // Exponential backoff
+                    goto failedResp;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Handle other exceptions
+                failedCount++;
+                if (failedCount > 3)
+                {
+                    Console.WriteLine($"[ENUM] Failed after {failedCount} attempts for {username}: {ex.Message}");
+                    return (false, "", null, null);
+                }
+                else
+                {
+                    Console.WriteLine($"[ENUM] Error for {username}, retrying ({failedCount}/3): {ex.Message}");
+                    await Task.Delay(1000 * failedCount); // Exponential backoff
+                    goto failedResp;
+                }
+            }
 
         }
 

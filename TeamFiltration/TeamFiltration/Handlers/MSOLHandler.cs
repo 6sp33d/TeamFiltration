@@ -220,6 +220,7 @@ namespace TeamFiltration.Handlers
 
 
             var client = new HttpClient(httpClientHandler);
+            client.Timeout = TimeSpan.FromMinutes(5); // Increase timeout to 5 minutes
             BearerTokenResp tokenResp = null;
             BearerTokenErrorResp errorResp = null;
 

@@ -52,6 +52,7 @@ namespace TeamFiltration.Handlers
             };
 
             _sharePointClient = new HttpClient(httpClientHandler);
+            _sharePointClient.Timeout = TimeSpan.FromMinutes(5); // Increase timeout to 5 minutes
             _sharePointClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {getBearToken.access_token}");
         }
 

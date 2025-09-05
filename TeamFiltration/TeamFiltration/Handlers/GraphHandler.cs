@@ -45,6 +45,7 @@ namespace TeamFiltration.Handlers
             };
 
             _graphClient = new HttpClient(httpClientHandler);
+            _graphClient.Timeout = TimeSpan.FromMinutes(5); // Increase timeout to 5 minutes
             _graphClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {getBearToken.access_token}");
 
 
