@@ -345,8 +345,9 @@ namespace TeamFiltration.Modules
                     gitHubDict.Add(7, "https://raw.githubusercontent.com/Flangvik/statistically-likely-usernames/master/smith.txt");
                     gitHubDict.Add(8, "https://raw.githubusercontent.com/Flangvik/statistically-likely-usernames/master/smithj.txt");
                     gitHubDict.Add(9, "https://raw.githubusercontent.com/Flangvik/statistically-likely-usernames/master/john_smith.txt");
-                    gitHubDict.Add(10, "https://raw.githubusercontent.com/Flangvik/statistically-likely-usernames/master/j.smith.txt");
-                    gitHubDict.Add(11, "https://raw.githubusercontent.com/Flangvik/statistically-likely-usernames/master/smithjj.txt");
+                    gitHubDict.Add(10, "https://raw.githubusercontent.com/Flangvik/statistically-likely-usernames/master/top-formats.txt");
+                    gitHubDict.Add(11, "https://raw.githubusercontent.com/Flangvik/statistically-likely-usernames/master/j.smith.txt");
+                    gitHubDict.Add(12, "https://raw.githubusercontent.com/Flangvik/statistically-likely-usernames/master/smithjj.txt");
 
 
                     foreach (var usernameDict in gitHubDict)
@@ -470,12 +471,21 @@ namespace TeamFiltration.Modules
 
                     if ((await CheckO365Method(msolHandler, $"{domain}", url)))
                     {
-                        await userListData.ParallelForEachAsync(
-                            async user =>
-                            {
-                                await ValidUserWrapperO365(msolHandler, user, url);
-
-                            }, maxDegreeOfParallelism: 50);
+                        int processedCount = 0;
+                        int totalCount = userListData.Count();
+                        
+                        using (var progress = new ProgressBar())
+                        {
+                            await userListData.ParallelForEachAsync(
+                                async user =>
+                                {
+                                    await ValidUserWrapperO365(msolHandler, user, url);
+                                    
+                                    // Update progress bar
+                                    Interlocked.Increment(ref processedCount);
+                                    progress.Report((double)processedCount / totalCount);
+                                }, maxDegreeOfParallelism: 50);
+                        }
 
 
 
@@ -543,13 +553,22 @@ namespace TeamFiltration.Modules
                             }
                             else
                             {
-
-                                await userListData.ParallelForEachAsync(
-                                   async user =>
-                                   {
-                                       await ValidUserWrapperTeams(teamsHandler, user, enumUserUrl);
-                                   },
-                                   maxDegreeOfParallelism: 300);
+                                int processedCount = 0;
+                                int totalCount = userListData.Count();
+                                
+                                using (var progress = new ProgressBar())
+                                {
+                                    await userListData.ParallelForEachAsync(
+                                       async user =>
+                                       {
+                                           await ValidUserWrapperTeams(teamsHandler, user, enumUserUrl);
+                                           
+                                           // Update progress bar
+                                           Interlocked.Increment(ref processedCount);
+                                           progress.Report((double)processedCount / totalCount);
+                                       },
+                                       maxDegreeOfParallelism: 300);
+                                }
                             }
 
 
@@ -589,12 +608,22 @@ namespace TeamFiltration.Modules
                     //For now let's not use the fireprox endpoints for this method
                     //(Amazon.APIGateway.Model.CreateDeploymentRequest, Models.AWS.FireProxEndpoint, string fireProxUrl) enumUserUrl = _globalProperties.GetFireProxURLObject("https://teams.microsoft.com/api/mt/", (new Random()).Next(0, _globalProperties.AWSRegions.Length));
 
-                    await userListData.ParallelForEachAsync(
-                       async user =>
-                       {
-                           await ValidUserWrapperOneDrive(oneDriveEnumHandler, user);
-                       },
-                       maxDegreeOfParallelism: 300);
+                    int processedCount = 0;
+                    int totalCount = userListData.Count();
+                    
+                    using (var progress = new ProgressBar())
+                    {
+                        await userListData.ParallelForEachAsync(
+                           async user =>
+                           {
+                               await ValidUserWrapperOneDrive(oneDriveEnumHandler, user);
+                               
+                               // Update progress bar
+                               Interlocked.Increment(ref processedCount);
+                               progress.Report((double)processedCount / totalCount);
+                           },
+                           maxDegreeOfParallelism: 300);
+                    }
 
 
 
@@ -615,13 +644,22 @@ namespace TeamFiltration.Modules
                         = _globalProperties.GetDirectUrl("https://login.microsoftonline.com/");
 
 
-                    await userListData.ParallelForEachAsync(
-                        async user =>
-                        {
-                            await ValidUserWrapperLogin(msolHandler, user, tempPw, $"{enumUserUrl}common/oauth2/token");
-
-                        },
-                        maxDegreeOfParallelism: 100);
+                    int processedCount = 0;
+                    int totalCount = userListData.Count();
+                    
+                    using (var progress = new ProgressBar())
+                    {
+                        await userListData.ParallelForEachAsync(
+                            async user =>
+                            {
+                                await ValidUserWrapperLogin(msolHandler, user, tempPw, $"{enumUserUrl}common/oauth2/token");
+                                
+                                // Update progress bar
+                                Interlocked.Increment(ref processedCount);
+                                progress.Report((double)processedCount / totalCount);
+                            },
+                            maxDegreeOfParallelism: 100);
+                    }
 
 
 
