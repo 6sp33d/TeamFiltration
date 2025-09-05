@@ -347,19 +347,12 @@ namespace TeamFiltration.Modules
                     gitHubDict.Add(9, "https://raw.githubusercontent.com/Flangvik/statistically-likely-usernames/master/john_smith.txt");
                     gitHubDict.Add(10, "https://raw.githubusercontent.com/Flangvik/statistically-likely-usernames/master/j.smith.txt");
                     gitHubDict.Add(11, "https://raw.githubusercontent.com/Flangvik/statistically-likely-usernames/master/smithjj.txt");
-                    gitHubDict.Add(12, "LOCAL:top-formats.txt");
+                    gitHubDict.Add(12, "https://raw.githubusercontent.com/insidetrust/statistically-likely-usernames/master/top-formats.txt");
 
 
                     foreach (var usernameDict in gitHubDict)
                     {
-                        if (usernameDict.Value.StartsWith("LOCAL:"))
-                        {
-                            Console.WriteLine($"    |=> [{usernameDict.Key}] " + usernameDict.Value.Replace("LOCAL:", "").Replace(".txt", "@" + domain));
-                        }
-                        else
-                        {
-                            Console.WriteLine($"    |=> [{usernameDict.Key}] " + usernameDict.Value.Split(@"/")[6].Replace(".txt", "@" + domain));
-                        }
+                        Console.WriteLine($"    |=> [{usernameDict.Key}] " + usernameDict.Value.Split(@"/")[6].Replace(".txt", "@" + domain));
                     }
                     Console.WriteLine();
                     Console.Write("[?] Select an email format #> ");
@@ -376,38 +369,16 @@ namespace TeamFiltration.Modules
                         goto startSelection;
                     }
 
-                    var selectedUrl = gitHubDict.GetValueOrDefault(selection);
-                    if (selectedUrl.StartsWith("LOCAL:"))
+                    var userListReq = await httpClient.PollyGetAsync(gitHubDict.GetValueOrDefault(selection));
+                    if (userListReq.IsSuccessStatusCode)
                     {
-                        // Handle local file
-                        var localFilePath = selectedUrl.Replace("LOCAL:", "");
-                        var fullPath = Path.Combine(Directory.GetCurrentDirectory(), localFilePath);
-                        
-                        if (File.Exists(fullPath))
-                        {
-                            var userListContent = await File.ReadAllTextAsync(fullPath);
-                            userListData = (userListContent).Split("\n").Where(x => !string.IsNullOrEmpty(x)).Select(x => x + $"@{domain}").ToArray();
-                        }
-                        else
-                        {
-                            Console.WriteLine($"[!] Local file not found: {fullPath}");
-                            Environment.Exit(0);
-                        }
+                        var userListContent = await userListReq.Content.ReadAsStringAsync();
+                        userListData = (userListContent).Split("\n").Where(x => !string.IsNullOrEmpty(x)).Select(x => x + $"@{domain}").ToArray();
                     }
                     else
                     {
-                        // Handle GitHub URL
-                        var userListReq = await httpClient.PollyGetAsync(selectedUrl);
-                        if (userListReq.IsSuccessStatusCode)
-                        {
-                            var userListContent = await userListReq.Content.ReadAsStringAsync();
-                            userListData = (userListContent).Split("\n").Where(x => !string.IsNullOrEmpty(x)).Select(x => x + $"@{domain}").ToArray();
-                        }
-                        else
-                        {
-                            Console.WriteLine("[!] Failed to download statistically-likely-usernames from Github!");
-                            Environment.Exit(0);
-                        }
+                        Console.WriteLine("[!] Failed to download statistically-likely-usernames from Github!");
+                        Environment.Exit(0);
                     }
                 }
 
@@ -500,21 +471,12 @@ namespace TeamFiltration.Modules
 
                     if ((await CheckO365Method(msolHandler, $"{domain}", url)))
                     {
-                        int processedCount = 0;
-                        int totalCount = userListData.Count();
-                        
-                        using (var progress = new ProgressBar())
-                        {
-                            await userListData.ParallelForEachAsync(
-                                async user =>
-                                {
-                                    await ValidUserWrapperO365(msolHandler, user, url);
-                                    
-                                    // Update progress bar
-                                    Interlocked.Increment(ref processedCount);
-                                    progress.Report((double)processedCount / totalCount);
-                                }, maxDegreeOfParallelism: 50);
-                        }
+                        await userListData.ParallelForEachAsync(
+                            async user =>
+                            {
+                                await ValidUserWrapperO365(msolHandler, user, url);
+
+                            }, maxDegreeOfParallelism: 50);
 
 
 
@@ -582,22 +544,13 @@ namespace TeamFiltration.Modules
                             }
                             else
                             {
-                                int processedCount = 0;
-                                int totalCount = userListData.Count();
-                                
-                                using (var progress = new ProgressBar())
-                                {
-                                    await userListData.ParallelForEachAsync(
-                                       async user =>
-                                       {
-                                           await ValidUserWrapperTeams(teamsHandler, user, enumUserUrl);
-                                           
-                                           // Update progress bar
-                                           Interlocked.Increment(ref processedCount);
-                                           progress.Report((double)processedCount / totalCount);
-                                       },
-                                       maxDegreeOfParallelism: 300);
-                                }
+
+                                await userListData.ParallelForEachAsync(
+                                   async user =>
+                                   {
+                                       await ValidUserWrapperTeams(teamsHandler, user, enumUserUrl);
+                                   },
+                                   maxDegreeOfParallelism: 300);
                             }
 
 
@@ -637,22 +590,12 @@ namespace TeamFiltration.Modules
                     //For now let's not use the fireprox endpoints for this method
                     //(Amazon.APIGateway.Model.CreateDeploymentRequest, Models.AWS.FireProxEndpoint, string fireProxUrl) enumUserUrl = _globalProperties.GetFireProxURLObject("https://teams.microsoft.com/api/mt/", (new Random()).Next(0, _globalProperties.AWSRegions.Length));
 
-                    int processedCount = 0;
-                    int totalCount = userListData.Count();
-                    
-                    using (var progress = new ProgressBar())
-                    {
-                        await userListData.ParallelForEachAsync(
-                           async user =>
-                           {
-                               await ValidUserWrapperOneDrive(oneDriveEnumHandler, user);
-                               
-                               // Update progress bar
-                               Interlocked.Increment(ref processedCount);
-                               progress.Report((double)processedCount / totalCount);
-                           },
-                           maxDegreeOfParallelism: 300);
-                    }
+                    await userListData.ParallelForEachAsync(
+                       async user =>
+                       {
+                           await ValidUserWrapperOneDrive(oneDriveEnumHandler, user);
+                       },
+                       maxDegreeOfParallelism: 300);
 
 
 
@@ -673,22 +616,13 @@ namespace TeamFiltration.Modules
                         = _globalProperties.GetDirectUrl("https://login.microsoftonline.com/");
 
 
-                    int processedCount = 0;
-                    int totalCount = userListData.Count();
-                    
-                    using (var progress = new ProgressBar())
-                    {
-                        await userListData.ParallelForEachAsync(
-                            async user =>
-                            {
-                                await ValidUserWrapperLogin(msolHandler, user, tempPw, $"{enumUserUrl}common/oauth2/token");
-                                
-                                // Update progress bar
-                                Interlocked.Increment(ref processedCount);
-                                progress.Report((double)processedCount / totalCount);
-                            },
-                            maxDegreeOfParallelism: 100);
-                    }
+                    await userListData.ParallelForEachAsync(
+                        async user =>
+                        {
+                            await ValidUserWrapperLogin(msolHandler, user, tempPw, $"{enumUserUrl}common/oauth2/token");
+
+                        },
+                        maxDegreeOfParallelism: 100);
 
 
 
